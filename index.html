@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tech News Feed</title>
+  <style>
+    :root {
+      --bg-color: linear-gradient(135deg, #111, #333);
+      --card-bg: rgba(255, 255, 255, 0.1);
+      --text-color: #ddd;
+      --accent-color: #1E90FF;
+    }
+
+    body.light {
+      --bg-color: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      --card-bg: rgba(255, 255, 255, 0.6);
+      --text-color: #222;
+      --accent-color: #0077FF;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      transition: all 0.3s ease;
+    }
+
+    header {
+      padding: 1rem;
+      text-align: center;
+      background: #000;
+      color: var(--accent-color);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+
+    #themeToggle {
+      margin-top: 1rem;
+      background: var(--accent-color);
+      border: none;
+      border-radius: 5px;
+      color: white;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    #themeToggle:hover {
+      background: #63B8FF;
+    }
+
+    #feed {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+      max-width: 1200px;
+      margin: auto;
+    }
+
+    .item {
+      background: var(--card-bg);
+      border-radius: 15px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .item:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.4);
+    }
+
+    .item img {
+      width: 100%;
+      height: auto;
+      border-radius: 15px 15px 0 0;
+      object-fit: cover;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+
+    .item-content {
+      padding: 1rem;
+    }
+
+    .item h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.2rem;
+      color: var(--accent-color);
+    }
+
+    .item p {
+      margin: 0 0 0.5rem;
+      color: var(--text-color);
+      font-size: 0.95rem;
+    }
+
+    .item a {
+      color: var(--accent-color);
+      text-decoration: none;
+    }
+
+    .item a:hover {
+      text-decoration: underline;
+    }
+
+    .listen-btn {
+      margin-top: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      background: var(--accent-color);
+      border: none;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.3s ease;
+    }
+
+    .listen-btn:hover {
+      background: #63B8FF;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Top Tech News</h1>
+  <button id="themeToggle">Toggle Light/Dark</button>
+</header>
+
+<div id="feed">
+  <p>Loading latest tech news...</p>
+</div>
+
+<script>
+  let currentUtterance = null;
+  let currentButton = null;
+
+  function toggleSpeech(button, text) {
+    if (speechSynthesis.speaking) {
+      speechSynthesis.cancel();
+      if (currentButton) currentButton.textContent = "🔊 Listen";
+      if (button === currentButton) {
+        currentUtterance = null;
+        currentButton = null;
+        return;
+      }
+    }
+    currentUtterance = new SpeechSynthesisUtterance(text);
+    currentUtterance.lang = 'en-US';
+    speechSynthesis.speak(currentUtterance);
+    button.textContent = "⏸ Pause";
+    currentButton = button;
+
+    currentUtterance.onend = () => {
+      button.textContent = "🔊 Listen";
+      currentUtterance = null;
+      currentButton = null;
+    };
+  }
+
+  document.getElementById("themeToggle").addEventListener("click", () => {
+    document.body.classList.toggle("light");
+  });
+
+  const feeds = [
+    'https://api.rss2json.com/v1/api.json?rss_url=https://www.theverge.com/rss/index.xml',
+    'https://api.rss2json.com/v1/api.json?rss_url=https://techcrunch.com/feed/'
+  ];
+
+  async function loadFeeds() {
+    const container = document.getElementById("feed");
+    container.innerHTML = '';
+    try {
+      for (let url of feeds) {
+        const res = await fetch(url);
+        const data = await res.json();
+        const items = data.items.slice(0, 2);
+        items.forEach(item => {
+          const div = document.createElement("div");
+          div.className = 'item';
+          div.innerHTML = `
+            ${item.thumbnail ? `<img src="${item.thumbnail}" alt="Thumbnail">` : ''}
+            <div class="item-content">
+              <h2><a href="${item.link}" target="_blank">${item.title}</a></h2>
+              <p>${item.description || ''}</p>
+              <button class="listen-btn" onclick="toggleSpeech(this, '${item.title.replace(/'/g, "\\'")} ${item.description.replace(/'/g, "\\'")}')">
+                🔊 Listen
+              </button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      }
+    } catch (e) {
+      container.innerHTML = '<p>Failed to load feeds.</p>';
+      console.error(e);
+    }
+  }
+
+  loadFeeds();
+</script>
+
+</body>
+</html>
