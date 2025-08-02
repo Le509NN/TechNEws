@@ -148,7 +148,7 @@
       background: #63B8FF;
     }
 
-    /* Floating Music Widget with Glow */
+    /* Floating Music Widget with Glow & Close Button */
     #music-widget {
       position: fixed;
       top: 30px;
@@ -187,6 +187,15 @@
       text-align: center;
     }
 
+    #close-widget {
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
     /* Responsive for Mobile */
     @media (max-width: 600px) {
       #music-widget {
@@ -217,7 +226,7 @@
   <div class="spinner"></div>
 </div>
 
-<!-- Floating Apple Music Widget (Responsive) -->
+<!-- Floating Apple Music Widget (v2.2) -->
 <div id="music-widget">
   <iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0"
     style="border-radius:12px;" 
@@ -225,6 +234,7 @@
     src="https://embed.music.apple.com/us/album/vi-mist%C3%A8-radio-edit-single/1626200653">
   </iframe>
   <span class="music-title">🎵 Vi Mistè</span>
+  <button id="close-widget">✖</button>
 </div>
 
 <script>
@@ -265,6 +275,364 @@
 
   document.getElementById("themeToggle").addEventListener("click", () => {
     document.body.classList.toggle("light");
+  });
+
+  // Close widget and remember preference
+  const widget = document.getElementById("music-widget");
+  const closeBtn = document.getElementById("close-widget");
+
+  // Hide if user closed before
+  if (localStorage.getItem("widgetClosed") === "true") {
+    widget.style.display = "none";
+  }
+
+  closeBtn.addEventListener("click", () => {
+    widget.style.display = "none";
+    localStorage.setItem("widgetClosed", "true");
+  });
+
+  const feeds = [
+    'https://api.rss2json.com/v1/api.json?rss_url=https://www.theverge.com/rss/index.xml',
+    'https://api.rss2json.com/v1/api.json?rss_url=https://techcrunch.com/feed/'
+  ];
+
+  async function loadFeeds() {
+    const container = document.getElementById("feed");
+    container.innerHTML = '<div class="spinner"></div>';
+
+    const corsProxy = "https://api.allorigins.win/get?url=";
+
+    try {
+      const responses = await Promise.all(
+        feeds.map(url =>
+          fetch(corsProxy + encodeURIComponent(url))
+            .then(r => r.json())
+            .then(data => JSON.parse(data.contents))
+        )
+      );
+
+      container.innerHTML = ''; // remove spinner
+
+      responses.forEach(data => {
+        const items = data.items.slice(0, 2);
+        items.forEach(item => {
+          const div = document.createElement("div");
+          div.className = 'item';
+          div.innerHTML = `
+            ${item.thumbnail ? `<img src="${item.thumbnail}" alt="Thumbnail">` : ''}
+            <div class="item-content">
+              <h2><a href="${item.link}" target="_blank">${item.title}</a></h2>
+              <p>${item.description || ''}</p>
+              <button class="listen-btn" onclick="toggleSpeech(this, '${item.title.replace(/'/g, "\\'")} ${item.description.replace(/'/g, "\\'")}')">
+                🔊 Listen
+              </button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      });
+
+    } catch (e) {
+      container.innerHTML = '<p>Failed to load feeds.</p>';
+      console.error(e);
+    }
+  }
+
+  loadFeeds();
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tech News Feed</title>
+  <style>
+    :root {
+      --bg-color: linear-gradient(135deg, #111, #333);
+      --card-bg: rgba(255, 255, 255, 0.1);
+      --text-color: #ddd;
+      --accent-color: #1E90FF;
+      --glow-color: 0 0 12px 2px rgba(0, 255, 128, 0.18);
+    }
+
+    body.light {
+      --bg-color: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+      --card-bg: rgba(255, 255, 255, 0.6);
+      --text-color: #222;
+      --accent-color: #0077FF;
+      --glow-color: 0 0 12px 2px rgba(0, 255, 128, 0.12);
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: var(--bg-color);
+      color: var(--text-color);
+      transition: all 0.3s ease;
+    }
+
+    header {
+      padding: 1rem;
+      text-align: center;
+      background: #000;
+      color: var(--accent-color);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+
+    #themeToggle {
+      margin-top: 1rem;
+      background: var(--accent-color);
+      border: none;
+      border-radius: 5px;
+      color: white;
+      padding: 0.5rem 1rem;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    #themeToggle:hover {
+      background: #63B8FF;
+    }
+
+    #feed {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1rem;
+      padding: 1rem;
+      max-width: 1200px;
+      margin: auto;
+      min-height: 200px;
+    }
+
+    /* Spinner Styles */
+    .spinner {
+      border: 6px solid rgba(255,255,255,0.1);
+      border-top: 6px solid var(--accent-color);
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+      margin: 50px auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Card Styles */
+    .item {
+      background: var(--card-bg);
+      border-radius: 15px;
+      box-shadow: var(--glow-color);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.4s ease;
+    }
+
+    .item:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 0 20px 4px rgba(0, 255, 128, 0.25);
+    }
+
+    .item img {
+      width: 100%;
+      height: auto;
+      border-radius: 15px 15px 0 0;
+      object-fit: cover;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+
+    .item-content {
+      padding: 1rem;
+    }
+
+    .item h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.2rem;
+      color: var(--accent-color);
+    }
+
+    .item p {
+      margin: 0 0 0.5rem;
+      color: var(--text-color);
+      font-size: 0.95rem;
+    }
+
+    .item a {
+      color: var(--accent-color);
+      text-decoration: none;
+    }
+
+    .item a:hover {
+      text-decoration: underline;
+    }
+
+    .listen-btn {
+      margin-top: 0.5rem;
+      padding: 0.4rem 0.8rem;
+      background: var(--accent-color);
+      border: none;
+      border-radius: 5px;
+      color: white;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.3s ease;
+    }
+
+    .listen-btn:hover {
+      background: #63B8FF;
+    }
+
+    /* Floating Music Widget with Glow & Close Button */
+    #music-widget {
+      position: fixed;
+      top: 30px;
+      right: 30px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: rgba(0,0,0,0.75);
+      border-radius: 15px;
+      padding: 8px;
+      box-shadow: 0 0 12px rgba(30,144,255,0.5);
+      z-index: 999;
+      animation: pulse 2s infinite ease-in-out;
+    }
+
+    #music-widget:hover {
+      animation-play-state: paused;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 12px rgba(30,144,255,0.3); }
+      50% { box-shadow: 0 0 24px rgba(30,144,255,0.6); }
+      100% { box-shadow: 0 0 12px rgba(30,144,255,0.3); }
+    }
+
+    #music-widget iframe {
+      width: 120px;
+      height: 120px;
+      border-radius: 12px;
+    }
+
+    #music-widget .music-title {
+      color: white;
+      font-size: 0.9rem;
+      margin-top: 5px;
+      text-align: center;
+    }
+
+    #close-widget {
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    /* Responsive for Mobile */
+    @media (max-width: 600px) {
+      #music-widget {
+        top: auto;
+        bottom: 20px;
+        right: 20px;
+      }
+
+      #music-widget iframe {
+        width: 90px;
+        height: 90px;
+      }
+
+      #music-widget .music-title {
+        font-size: 0.7rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Top Tech News</h1>
+  <button id="themeToggle">Toggle Light/Dark</button>
+</header>
+
+<div id="feed">
+  <div class="spinner"></div>
+</div>
+
+<!-- Floating Apple Music Widget (v2.2) -->
+<div id="music-widget">
+  <iframe allow="autoplay *; encrypted-media *; fullscreen *; clipboard-write" frameborder="0"
+    style="border-radius:12px;" 
+    sandbox="allow-forms allow-popups allow-same-origin allow-scripts allow-storage-access-by-user-activation allow-top-navigation-by-user-activation"
+    src="https://embed.music.apple.com/us/album/vi-mist%C3%A8-radio-edit-single/1626200653">
+  </iframe>
+  <span class="music-title">🎵 Vi Mistè</span>
+  <button id="close-widget">✖</button>
+</div>
+
+<script>
+  let currentUtterance = null;
+  let currentButton = null;
+  let isPaused = false;
+
+  function toggleSpeech(button, text) {
+    if (currentButton && button !== currentButton) {
+      speechSynthesis.cancel();
+      currentButton.textContent = "🔊 Listen";
+    }
+
+    if (!speechSynthesis.speaking || (button !== currentButton)) {
+      currentUtterance = new SpeechSynthesisUtterance(text);
+      currentUtterance.lang = 'en-US';
+      speechSynthesis.speak(currentUtterance);
+      button.textContent = "⏸ Pause";
+      currentButton = button;
+      isPaused = false;
+
+      currentUtterance.onend = () => {
+        button.textContent = "🔊 Listen";
+        currentUtterance = null;
+        currentButton = null;
+        isPaused = false;
+      };
+    } else if (!isPaused) {
+      speechSynthesis.pause();
+      button.textContent = "▶ Resume";
+      isPaused = true;
+    } else {
+      speechSynthesis.resume();
+      button.textContent = "⏸ Pause";
+      isPaused = false;
+    }
+  }
+
+  document.getElementById("themeToggle").addEventListener("click", () => {
+    document.body.classList.toggle("light");
+  });
+
+  // Close widget and remember preference
+  const widget = document.getElementById("music-widget");
+  const closeBtn = document.getElementById("close-widget");
+
+  // Hide if user closed before
+  if (localStorage.getItem("widgetClosed") === "true") {
+    widget.style.display = "none";
+  }
+
+  closeBtn.addEventListener("click", () => {
+    widget.style.display = "none";
+    localStorage.setItem("widgetClosed", "true");
   });
 
   const feeds = [
