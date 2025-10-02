@@ -29,7 +29,6 @@ jobs:
         run: pip install openai==1.*
 
       - name: Apply agent edit
-        id: edit
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           FILE_PATH: ${{ github.event.inputs.file }}
@@ -44,18 +43,17 @@ jobs:
               raise SystemExit(f"File not found: {p}")
 
           original = p.read_text(encoding="utf-8")
+          instructions = os.environ["INSTRUCTIONS"]
 
           system = "You are a meticulous web editor. Output ONLY the full, final file content—no commentary."
-          user = f"""Edit the file below according to the instructions.
-
-<FILE_PATH>{p}</FILE_PATH>
-<BEGIN_FILE>
-{original}
-<END_FILE>
-
-INSTRUCTIONS:
-{os.environ["INSTRUCTIONS"]}
-"""
+          user = (
+              "Edit the file below according to the instructions.\n\n"
+              f"FILE_PATH: {p}\n"
+              "BEGIN_FILE\n"
+              f"{original}\n"
+              "END_FILE\n\n"
+              f"INSTRUCTIONS:\n{instructions}\n"
+          )
 
           client = OpenAI()
           resp = client.chat.completions.create(
