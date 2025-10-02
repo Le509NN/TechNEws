@@ -1,3 +1,33 @@
+name: Agent HTML Edit
+
+on:
+  workflow_dispatch:
+    inputs:
+      file:
+        description: "Path to the file to edit"
+        required: true
+        default: "index.html"
+      instructions:
+        description: "Describe the change to apply"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  edit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install OpenAI SDK
+        run: pip install openai==1.*
+
       - name: Apply agent edit
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -8,7 +38,6 @@
           import os, pathlib
           from openai import OpenAI
 
-          # ✅ Explicitly pass the key
           client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
           p = pathlib.Path(os.environ["FILE_PATH"])
@@ -29,7 +58,7 @@
           )
 
           resp = client.chat.completions.create(
-              model="gpt-5",
+              model="gpt-4o-mini",
               messages=[{"role":"system","content":system},
                         {"role":"user","content":user}],
               temperature=0
@@ -37,3 +66,17 @@
           new_content = resp.choices[0].message.content
           p.write_text(new_content, encoding="utf-8")
           PY
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "Agent edit: ${{ github.event.inputs.instructions }}"
+          title: "Agent: ${{ github.event.inputs.instructions }}"
+          body: |
+            Automated change via Agent workflow.
+            **File:** ${{ github.event.inputs.file }}
+            **Instructions:** ${{ github.event.inputs.instructions }}
+          branch: "agent/edit-${{ github.run_id }}"
+          labels: "agent-edit"
+          draft: true
+          delete-branch: true
